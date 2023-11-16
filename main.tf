@@ -1,26 +1,34 @@
-
-
-# Random String Resource
-resource "random_string" "myrandom" {
-  length = 6
-  upper = false 
-  special = false
-   
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      version = "=3.80.0"
+    }
+  }
 }
 
-
-# Create Resource Group
-resource "azurerm_resource_group" "rg_indexweb" {
-    name = var.rg_name
-    location = var.rg_location
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
   
 }
 
+
+
+resource "azurerm_resource_group" "demo-rg" {
+  name     = var.demo-rg
+  location = var.demo-rg-location
+}
+
 # Create Storage Account
-resource "azurerm_storage_account" "static_storage" {
-  name                     = "${var.sa_webindex_name}${random_string.random_string.result}"
-  resource_group_name      = azurerm_resource_group.rg_indexweb.name
-  location                 = azurerm_resource_group.rg_indexweb.location
+resource "azurerm_storage_account" "static-web-storage-account" {
+  name                     = var.myprojectstorage00231
+  resource_group_name      = azurerm_resource_group.demo-rg.name
+  location                 = azurerm_resource_group.demo-rg.location
   account_kind             = "StorageV2"
   account_tier             = "Standard"
   account_replication_type = "GRS"
@@ -32,22 +40,20 @@ resource "azurerm_storage_account" "static_storage" {
   }
 
 
-# Add a index.html file to the storage account
-resource "azurem_storage_blob" "index-html" {
-    name = var.index_document
-    storage_account_name = azurerm_storage_account.sa_webindex_name
-    storage_container_name = "$web"
-    type = "Block"
-    content_type = "text/html"
-    source_content = var.source_content
-
-  
+resource "azurerm_storage_container" "az_sc_backend" {
+  name                  = "$web"
+  storage_account_name  = azurerm_storage_account.static-web-storage-account.name
+  container_access_type = "private"
 }
 
+resource "azurerm_storage_blob" "web_content" {
+  name                   = "index.html"
+  storage_account_name   = azurerm_storage_account.static-web-storage-account.name
+  storage_container_name = azurerm_storage_container.az_sc_backend.name
+  type                   = "Block"
+  }
 
-
-output "primary_web_endpoint" {
-  value = azurerm_storage_account.static_storage.primary_web_endpoint 
-  
+  output "primary_web_endpoint" {
+  description = "The primary web endpoint for the static website of the storage account"
+  value       = azurerm_storage_account.static-web-storage-account.name
 }
-
